@@ -60,10 +60,10 @@ who_final <- who_recode %>%
   arrange(date, target_group)
 
 # output data
-write_csv(who_final, file = "./target-data/chile-target.csv")
+write_csv(who_final, file = "../target-data/chile-target.csv")
 
 sat_date <- Sys.Date() + (7 - wday(Sys.Date()))
-write_csv(who_final, file = paste0("./auxiliary-data/target-data-archive/chile-target_",
+write_csv(who_final, file = paste0("../auxiliary-data/target-data-archive/chile-target_",
                                    year(sat_date), 
                                    "_",
                                    sprintf("%02d", month(sat_date)),
