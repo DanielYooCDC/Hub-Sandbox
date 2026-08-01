@@ -1,0 +1,82 @@
+name: Run weekly report
+
+permissions:
+  contents: write
+  
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Run weekly report'
+        required: false
+  schedule:
+    - cron: '00 12 * * 4'
+
+jobs:
+  run-weekly-report:
+    runs-on: ubuntu-22.04 
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup R 
+        uses: r-lib/actions/setup-r@v2
+        with:
+          install-r: false
+          use-public-rspm: true
+
+      - name: Update R
+        run: |
+          sudo apt-get update
+
+      - name: Install Quarto CLI
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::pacman
+            any::tidyverse
+            any::here
+            any::DT
+            any::scoringutils
+            any::distfromq
+            any::hubEnsembles
+            any::reshape2
+            any::hubUtils
+            any::plotly
+            any::rmarkdown
+            any::knitr
+            any::kableExtra
+            any::ISOweek
+            any::MMWRweek
+            any::htmltools
+            any::quarto
+    
+      - name: Run weekly report
+        run: |
+          cd src
+          # make sure the folder exists
+          mkdir -p ../auxiliary-data/weekly-report
+          # compute today’s date in YYYY-MM-DD
+          today_str=$(date +%F)
+          # render and give the file a dynamic name
+          quarto render \
+            forecasting-weeklyreport.qmd \
+            --to html \
+            --output-dir ../auxiliary-data/weekly-report \
+            --output "forecasting-weeklyreport_${today_str}.html"
+            
+      - name: Commit report
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          # compute today’s date in YYYY-MM-DD
+          today_str=$(date +%F)
+          git add "auxiliary-data/weekly-report/forecasting-weeklyreport_${today_str}.html"
+          git commit -m "Automated weekly report run" || echo "No changes to commit"
+          git push
+
