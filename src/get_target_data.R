@@ -6,10 +6,12 @@ library(MMWRweek)
 library(curl)
 
 # pull data from FluID API
-who_raw <- tryCatch({
+who_raw <- {
   response <- GET("https://xmart-api-public.who.int/FLUMART/VIW_FID_EPI?$format=csv",
-                  add_headers('Cache-Control' = 'no-cache'))                    # request the most recent data not cached data
-  data <- read_csv(content(response, as = "raw"),
+                  add_headers('Cache-Control' = 'no-cache'),                    # request the most recent data not cached data
+                  config(http_version = 2))    
+  stop_for_status(response)   # turn an HTTP error status into a clear R error                
+  read_csv(content(response, as = "raw"),
                    col_types = cols(
                      GEOSPREAD_COMMENTS = col_character(),
                      PNEU_NB_SITES = col_character(),
@@ -18,10 +20,7 @@ who_raw <- tryCatch({
     group_by(COUNTRY_AREA_TERRITORY) %>% 
     arrange(ISO_WEEKSTARTDATE, .by_group=TRUE) %>% 
     ungroup()
-  data
-}, warning = function(w){
 }
-)
 rm(response)
 
 # countries to work with
