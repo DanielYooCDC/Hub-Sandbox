@@ -2,78 +2,29 @@
     "schema_version": "https://raw.githubusercontent.com/hubverse-org/schemas/main/v6.0.0/tasks-schema.json",
     "rounds": [{
             "round_id_from_variable": true,
-            "round_id": "origin_date",
+            "round_id": "reference_date",
             "model_tasks": [{
                 "task_ids": {
-                    "origin_date": {
+                    "reference_date": {
                         "required": null,
-                        "optional": ["2022-11-28", "2022-12-05", "2022-12-12"]
+                        "optional": [
+                          "2026-05-30", "2026-06-06", "2026-06-13", "2026-06-20", "2026-06-27"
+                          ]
                     },
                     "target": {
-                        "required": ["inc covid hosp"],
+                        "required": ["SARI"],
                         "optional": null
                     },
                     "horizon": {
                         "required": null,
-                        "optional": [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+                        "optional": [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3]
                     },
-                    "location": {
+                    "age_group": {
                         "required": null,
                         "optional": [
-                            "US",
-                            "01",
-                            "02",
-                            "04",
-                            "05",
-                            "06",
-                            "08",
-                            "09",
-                            "10",
-                            "11",
-                            "12",
-                            "13",
-                            "15",
-                            "16",
-                            "17",
-                            "18",
-                            "19",
-                            "20",
-                            "21",
-                            "22",
-                            "23",
-                            "24",
-                            "25",
-                            "26",
-                            "27",
-                            "28",
-                            "29",
-                            "30",
-                            "31",
-                            "32",
-                            "33",
-                            "34",
-                            "35",
-                            "36",
-                            "37",
-                            "38",
-                            "39",
-                            "40",
-                            "41",
-                            "42",
-                            "44",
-                            "45",
-                            "46",
-                            "47",
-                            "48",
-                            "49",
-                            "50",
-                            "51",
-                            "53",
-                            "54",
-                            "55",
-                            "56",
-                            "72",
-                            "78"
+                            "Overall",
+                            "Pediatrics",
+                            "Adults"
                         ]
                     }
                 },
@@ -125,23 +76,23 @@
                 },
                 "target_metadata": [
                     {
-                       "target_id": "inc covid hosp",
-                       "target_name": "Daily incident COVID hospitalizations",
+                       "target_id": "SARI",
+                       "target_name": "Weekly SARI case counts",
                        "target_units": "count",
                        "target_keys": {
-                           "target": "inc covid hosp"
+                           "target": "SARI"
                        },
-                       "description": "Daily newly reported hospitalizations where the patient has COVID, as reported by hospital facilities and aggregated in the HHS Protect data collection system.",
-                       "target_type": "discrete",
+                       "description": "Weekly SARI case counts from FluID",
+                       "target_type": "continuous",
                        "is_step_ahead": true,
-                       "time_unit": "day"
+                       "time_unit": "week"
                     }
                 ]
             }],
             "submissions_due": {
-                "relative_to": "origin_date",
-                "start": -6,
-                "end": 1
+                "relative_to": "reference_date",
+                "start": -365,
+                "end": 365
             }
         }
     ]
