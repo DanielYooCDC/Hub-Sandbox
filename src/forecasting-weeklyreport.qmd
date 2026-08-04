@@ -1,12 +1,11 @@
 ---
-title: "Informe semanal de Pronósticos, Chile."
-date: "`r format(Sys.Date(), '%d %B %Y')`"
-lang: es
+title: "MicroHub Workshop Weekly Report"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
 format: 
   html:
     theme: yeti
     toc: true
-    toc-title: "Saltar a"
+    toc-title: "Jump To"
     embed-resources: true
     smooth-scroll: true
 execute:
@@ -24,23 +23,18 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, here, DT, scoringutils, distfromq, hubEnsembles, reshape2, hubUtils, plotly, rmarkdown, knitr, kableExtra, ISOweek, MMWRweek, htmltools)
 
 # settings
-current_ref  <- lubridate::ceiling_date(Sys.Date(), "week") - lubridate::days(1)
-current_target <- "SARI"
-viruses <- c("influenza", "rsv", "covid")
-
-# number of weeks after an event week (admit or symptom onset) before that week's data first become available.
-# e.g. week 24 data available in week 25 -> 1; available in week 26 -> 2.
-lag_weeks <- 2
+current_date <- as.Date("2026-06-24")  # Sys.Date()
+current_ref  <- lubridate::ceiling_date(current_date, "week") - lubridate::days(1)
 
 # forecasting files
-files_chile <- list.files(
-  path    = here("model-output", "MicroHub"),
+forc_files <- list.files(
+  path    = here("auxiliary-data", "microhub-output"),
   pattern = ".*-output_\\d{4}-\\d{2}-\\d{2}\\.csv$",
   full.names = TRUE
 )
-dates_chile <- regmatches(files_chile, regexpr("\\d{4}-\\d{2}-\\d{2}", files_chile)) %>%
+forc_dates <- regmatches(forc_files, regexpr("\\d{4}-\\d{2}-\\d{2}", forc_files)) %>%
   as.Date()
-first_forecast <- dates_chile %>%
+first_forecast <- forc_dates %>%
   # Keep only dates in the same year as current_ref
   .[epiyear(.) == epiyear(current_ref)] %>%
   min()
@@ -56,25 +50,10 @@ raw_truth <- read_csv(
   here("target-data", "chile-target.csv"),
     col_types = cols_only(
       date = col_character(),
-      target = col_character(),
       target_group = col_character(),
       value = col_double())
    ) %>% 
   mutate(date = as.Date(parse_date_time(date, orders = c("Ymd", "mdy", "mdY")))) %>% 
-  filter(target == current_target) %>% 
-  arrange(date) 
-
-
-raw_viruses <- read_csv(
-  here("target-data", "chile-target.csv"),
-    col_types = cols_only(
-      date = col_character(),
-      target = col_character(),
-      target_group = col_character(),
-      value = col_double())
-   ) %>% 
-  mutate(date = as.Date(parse_date_time(date, orders = c("Ymd", "mdy", "mdY")))) %>% 
-  filter(target %in% paste(current_target, viruses)) %>% 
   arrange(date) 
 
 ```
@@ -176,31 +155,31 @@ quantile_to_pmf <- function(model_id = "Copycat",
 
 ```
 
-## Pronóstico para la semana en curso: casos nuevos de IRAG
+## Current week's forecast: new SARI cases
 
-La figura muestra el número de casos de influenza notificados a través de FluID. La línea negra representa los casos notificados. Las previsiones incluyen estimaciones para la semana anterior (hindcast, en morado), la semana actual (nowcast, en azul oscuro) y las previsiones a 3 semanas en la línea azul con los intervalos de predicción correspondientes.
+The figure shows the number of severe acute respiratory infections (SARI) cases reported through FluID. The black line represents reported cases. Forecasts include estimates for the previous week (hindcast, in purple), the current week (nowcast, in dark blue), and the 3-week ahead forecasts in the blue line with corresponding prediction intervals.
 
-Los pronósticos de conjunto combinan pronósticos de diferentes modelos en uno solo. Estos pronósticos de conjunto se generan a partir de tres modelos previamente validados: modelos que se centran en patrones históricos de los datos (enfoques de suavización y coincidencia de patrones) y un modelo basado en un método de aprendizaje automático (gradient boosting).
+Ensemble forecasts combine forecasts from different models into one forecast. These ensemble forecasts are generated using an ensemble of three previously validated models: models that focus on historical patterns in the data (smoothing and pattern matching approaches) and a model based on a machine learning method (gradient boosting).
 
-La trayectoria del pronóstico de casos de IRAG se clasifica en cinco niveles – aumento grande, aumento, estable, disminución, disminución grande – según la magnitud del cambio. Los umbrales para estas categorías se determinaron utilizando datos desde 2022, o el año más temprano disponible, hasta 2025 (ver apéndice para más detalles). Estos umbrales se utilizan para comparar el recuento de casos de IRAG observados en la semana más reciente con las predicciones de los horizontes de hindcast, nowcast y pronóstico.
+Each week is also summarized as one of five trend categories, shown in the colored strip below the figure, based on the direction and magnitude of change in case counts – large increase, increase, stable, decrease, large decrease. For reported weeks, the trend compares each week with the week immediately before it (a week-to-week change). For forecasted weeks, the trend instead compares each week with the most recent reported week; because that reference point stays fixed, the change is measured over a longer window the further ahead the forecast reaches (a one-week change for the first forecasted week, a two-week change for the next, and so on).The thresholds for these categories were determined using data from 2022, or the earliest year available, through the previous year (see appendix for details). 
 
 ```{r}
-#| label: fig1-chile-check
+#| label: fig1-check
 #| include: false
 
-chile_filepath <- paste0(here("model-output", "MicroHub"),
-                         "/chile-output_", current_ref, ".csv")
-chile_available <- file.exists(chile_filepath)
+forc_filepath <- paste0(here("auxiliary-data", "microhub-output"),
+                         "/microhub-output_", current_ref, ".csv")
+forc_available <- file.exists(forc_filepath)
 ```
 
 ```{r}
-#| label: fig1-forc-prep-chile
+#| label: fig1-forc-prep
 #| include: false
-#| eval: !expr chile_available
+#| eval: !expr forc_available
  
 # ensemble forecast output for this week
-forecast_chile <- readr::read_csv(
-  chile_filepath,
+forecast <- readr::read_csv(
+  forc_filepath,
   col_types = cols_only(
     model = col_character(),
     reference_date = col_character(),
@@ -217,24 +196,24 @@ forecast_chile <- readr::read_csv(
   filter(output_type == "quantile") 
 
 # plotly data to work with
-common_dates_chile <- intersect(raw_truth %>% pull(date), 
-                                forecast_chile$target_end_date)
+common_dates <- intersect(raw_truth %>% pull(date), 
+                          forecast$target_end_date)
 fig1_dat <- bind_rows(raw_truth %>% 
-                        filter(date < min(forecast_chile$target_end_date)) %>% 
+                        filter(date < min(forecast$target_end_date)) %>% 
                         dplyr::select(target_end_date = date, target_group, value),
-                      forecast_chile %>% 
+                      forecast %>% 
                         filter(model == "Ensemble") %>%
                         pivot_wider(names_from = output_type_id,
                                     values_from = value) %>% 
                         dplyr::select(forc_value = `0.5`, target_end_date, target_group, 
                              `0.025`, `0.975`, `0.25`, `0.75`)) %>% 
-  filter(target_end_date > as.Date(current_ref) - 120) %>% 
+  filter(target_end_date > as.Date(current_ref) - 150) %>% 
   filter(target_end_date < as.Date(current_ref) + 30) %>% 
   group_by(target_group) %>% 
   complete(target_end_date = seq(min(target_end_date), max(target_end_date), by = "1 week")) %>% 
   mutate(
-    hindcast_drop = case_when(target_end_date %in% common_dates_chile ~ forc_value, TRUE ~ NA_real_),
-    hindcast = case_when(!(target_end_date %in% common_dates_chile) & 
+    hindcast_drop = case_when(target_end_date %in% common_dates ~ forc_value, TRUE ~ NA_real_),
+    hindcast = case_when(!(target_end_date %in% common_dates) & 
                            target_end_date < current_ref ~ forc_value, TRUE ~ NA_real_),
     nowcast  = case_when(target_end_date == current_ref ~ forc_value, TRUE ~ NA_real_),
     forecast = case_when(target_end_date > current_ref ~ forc_value, TRUE ~ NA_real_)
@@ -242,8 +221,8 @@ fig1_dat <- bind_rows(raw_truth %>%
   mutate(
     week_label = if_else(
       epiweek(target_end_date) == 1,
-      paste0(lubridate::epiyear(target_end_date), " Semana ", epiweek(target_end_date)),
-      paste0("Semana ", epiweek(target_end_date)))
+      paste0(lubridate::epiyear(target_end_date), " Week ", epiweek(target_end_date)),
+      paste0("Week ", epiweek(target_end_date)))
     ) 
   
 # Create a list of unique dates and their corresponding epiweek labels for tickvals and ticktext
@@ -262,10 +241,6 @@ fig1 <- lapply(unique(fig1_dat$target_group), function(g) {
       blue_line = coalesce(nowcast, forecast)
     )
   
-  g1 <- ifelse(g == "Adults", "Hospitalizaciones IRAG en adultos (mayores de 20 años)",
-               ifelse(g == "Pediatrics", "Hospitalizaciones IRAG en población pediátrica (menores de 20 años)", 
-                      "Hospitalizaciones totales por Infección Respiratoria Aguda Grave (IRAG)"))
-   
   p <- plot_ly(data = dat, 
                x = ~target_end_date) %>% 
   add_trace(y = ~`0.025`, name = "outer_lower", 
@@ -286,7 +261,7 @@ fig1 <- lapply(unique(fig1_dat$target_group), function(g) {
             fill = "tonexty", fillcolor="#5CC3F0", 
             showlegend = FALSE,
             yaxis = 'y2') %>% 
-  add_trace(y = ~value, name = "Notificado", 
+  add_trace(y = ~value, name = "Reported", 
             type = "scatter", mode = "lines+markers", 
             line = list(color = "black"),
             marker = list(color = "black", size = 8),
@@ -299,7 +274,7 @@ fig1 <- lapply(unique(fig1_dat$target_group), function(g) {
             type = "scatter", mode = "lines",
             line = list(color = "#2B55D4"),
             showlegend = FALSE, yaxis = 'y2') %>%
-  add_trace(y = ~hindcast_drop, name = "Hindcast (semanas omitidas)",
+  add_trace(y = ~hindcast_drop, name = "Hindcast (dropped weeks)",
           type = "scatter", mode = "markers",
           # line = list(color = "#7B6FC4"),
           marker = list(color = "transparent", size = 8, line = list(color = "#7B6FC4", width = 2)),
@@ -315,7 +290,7 @@ fig1 <- lapply(unique(fig1_dat$target_group), function(g) {
           # line = list(color = "#1A3A8F"),
           marker = list(color = "#1A3A8F", size = 8),
           yaxis = 'y2') %>%
-  add_trace(y = ~forecast, name = "Pronóstico",
+  add_trace(y = ~forecast, name = "Forecast",
           type = "scatter", mode = "markers",
           # line = list(color = "#2B55D4"),
           marker = list(color = "#2B55D4", size = 8),
@@ -326,7 +301,7 @@ fig1 <- lapply(unique(fig1_dat$target_group), function(g) {
             showlegend = FALSE,
             yaxis = 'y1') %>% 
   layout(
-    title = list(text = g1, 
+    title = list(text = "", 
                  x = 0.05, 
                  font = list(family="Arial", size = 18, style = "bold")),
     xaxis = list(title = "",
@@ -341,11 +316,11 @@ fig1 <- lapply(unique(fig1_dat$target_group), function(g) {
                 ),
     yaxis = list(showticklabels = FALSE, showgrid = FALSE,
                  range = c(0, max(c(dat$value, dat$`0.975`), 
-                                  na.rm = TRUE)*1.3)),
+                                  na.rm = TRUE)*1.2)),
     yaxis2 = list(side = "right", showline = TRUE, showticklabels = TRUE, 
                   tickangle = 0, tickfont = list(family="Arial", size = 18),
                   range = c(0, max(c(dat$value, dat$`0.975`), 
-                                   na.rm = TRUE)*1.3)),
+                                   na.rm = TRUE)*1.2)),
     legend = list(
       x = 0.01,
       y = 0.99,
@@ -354,10 +329,10 @@ fig1 <- lapply(unique(fig1_dat$target_group), function(g) {
     ),
     annotations = list(
       list(x = 0.99, y = 0.98, xref = "paper", yref = "paper", 
-           text = "Bandas internas: Intervalos de predicción al 50%", font = list(family="Arial", size = 12),
+           text = "Inner Bands: 50% Prediction Intervals", font = list(family="Arial", size = 12),
            showarrow = FALSE),
       list(x = 0.99, y = 0.93, xref = "paper", yref = "paper", 
-           text = "Bandas externas: Intervalos de predicción al 95%", font = list(family="Arial", size = 12),
+           text = "Outer Bands: 95% Prediction Intervals", font = list(family="Arial", size = 12),
            showarrow = FALSE)
       ),
     margin = list(t = 50, r = 50)
@@ -369,19 +344,19 @@ fig1 <- lapply(unique(fig1_dat$target_group), function(g) {
 ```
 
 ```{r}
-#| label: fig1-diff-prep-chile
+#| label: fig1-diff-prep
 #| include: false
-#| eval: !expr chile_available
+#| eval: !expr forc_available
 
 # most recent week
 most_recent <- raw_truth %>% 
   group_by(target_group) %>% 
-  filter(date < min(forecast_chile$target_end_date)) %>% 
+  filter(date < min(forecast$target_end_date)) %>% 
   slice(n())
 
 # week difference using historical data
 # The main use for this is to convert absolute number to historical X-week difference
-diff_data_chile <- raw_truth %>% 
+diff_data <- raw_truth %>% 
   filter(epiyear(date) < year(Sys.Date())) %>%  # we are evaluating up to previous season
   group_by(target_group) %>%
   arrange(date) %>%
@@ -458,35 +433,34 @@ diff_data_chile <- raw_truth %>%
 ```
 
 ```{r}
-#| label: fig1-heatmap-prep-chile
+#| label: fig1-heatmap-prep
 #| include: false
-#| eval: !expr chile_available
+#| eval: !expr forc_available
 
 # Model names
-available_models <- forecast_chile %>% 
+available_models <- forecast %>% 
   distinct(model) %>%   
   filter(!str_detect(model, "Baseline|Ensemble")) %>% 
   pull()
 
 # convert quantile to categorical
 pmf_list <- list()
-chile_horizons <- forecast_chile %>% distinct(horizon) %>% pull()
-chile_separator <- length(chile_horizons) * (1:(forecast_chile %>% distinct(target_group) %>% pull() %>% length()))
+horizons <- forecast %>% distinct(horizon) %>% pull()
+separator <- length(horizons) * (1:(forecast %>% distinct(target_group) %>% pull() %>% length()))
 for (model_name in available_models) {
   pmf_list[[model_name]] <- quantile_to_pmf(
     model_id = model_name,
-    current_forecasts = forecast_chile,
-    threshold = diff_data_chile,
+    current_forecasts = forecast,
+    threshold = diff_data,
     categories = c("large_increase", "increase", "stable", "decrease", "large_decrease"),
-    horizons = chile_horizons
+    horizons = horizons
   )
 }
 output_pmf <- bind_rows(pmf_list)
 
 # ensemble categorical forecast output for this week
 task_id_cols <- c("reference_date", "target_group", "horizon", "target_end_date")
-categorical_forecast <- output_pmf %>%
-  filter(model %in% c("INFLAenza", "CalCopycat", "newGBQR")) %>% 
+categorical_forecast <- output_pmf %>% 
   rename(model_id = model) %>% 
   hubEnsembles::simple_ensemble(
     agg_fun="mean",
@@ -502,12 +476,12 @@ fig1_heat <- lapply(unique(categorical_forecast$target_group), function(g) {
   
   heatmap <- cbind(
     raw_truth %>% 
-      filter(date < min(forecast_chile$target_end_date)) %>%  
+      filter(date < min(forecast$target_end_date)) %>%  
       dplyr::select(target_group, target_end_date = date, value) %>% 
       group_by(target_group) %>% 
       arrange(target_end_date) %>% 
       mutate(flu_diff = value - lag(value, 1)) %>% 
-      left_join(diff_data_chile %>% ungroup() %>% filter(wk_diff == 1) %>% select(-c(wk_diff, value)),  # 1-week difference
+      left_join(diff_data %>% ungroup() %>% filter(wk_diff == 1) %>% select(-c(wk_diff, value)),  # 1-week difference
                 by = "target_group") %>% 
       mutate(diff_cat = case_when(flu_diff > crit1 ~ 5, # large increase
                                   flu_diff > crit2 ~ 4, # increase
@@ -515,7 +489,7 @@ fig1_heat <- lapply(unique(categorical_forecast$target_group), function(g) {
                                   flu_diff > crit4 ~ 2, #decrease
                                   TRUE ~ 1)) %>% 
       select(target_end_date, target_group, diff_cat) %>% 
-      filter(target_end_date > as.Date(current_ref) - 180) %>%  
+      filter(target_end_date > as.Date(current_ref) - 150) %>%  
       pivot_wider(names_from = target_end_date   ,
                   values_from = diff_cat ) %>% 
       ungroup() %>% 
@@ -533,9 +507,8 @@ fig1_heat <- lapply(unique(categorical_forecast$target_group), function(g) {
                large_decrease == max_value ~ 1 # large decrease
              )) %>% 
       select(target_end_date, target_group, diff_cat) %>% 
-      pivot_wider(names_from = target_end_date   ,
+      pivot_wider(names_from = target_end_date,
                   values_from = diff_cat ) %>% 
-      # select(-((ncol(.)-1):ncol(.))) %>%
       ungroup() %>% 
       filter(target_group == g) %>% 
       select(-target_group) %>% 
@@ -554,20 +527,20 @@ fig1_heat <- lapply(unique(categorical_forecast$target_group), function(g) {
 
   hover_text <- cbind(
     raw_truth %>% 
-      filter(date < min(forecast_chile$target_end_date)) %>%  
+      filter(date < min(forecast$target_end_date)) %>%  
       dplyr::select(target_group, target_end_date = date, value) %>% 
       group_by(target_group) %>% 
       arrange(target_end_date) %>% 
       mutate(flu_diff = value - lag(value, 1)) %>% 
-      left_join(diff_data_chile %>% ungroup() %>% filter(wk_diff == 1) %>% select(-c(wk_diff, value)),  # 1-week difference
+      left_join(diff_data %>% ungroup() %>% filter(wk_diff == 1) %>% select(-c(wk_diff, value)),  # 1-week difference
                 by = "target_group") %>% 
-      mutate(diff_cat = case_when(flu_diff > crit1 ~ paste0("Semana", epiweek(target_end_date), ": ", "gran aumento"),
-                                  flu_diff > crit2 ~ paste0("Semana", epiweek(target_end_date), ": ", "aumento"), # increase
-                                  flu_diff > crit3 ~ paste0("Semana", epiweek(target_end_date), ": ", "estable"), # stable
-                                  flu_diff > crit4 ~ paste0("Semana", epiweek(target_end_date), ": ", "disminución"), #decrease
-                                  TRUE ~ paste0("Semana", epiweek(target_end_date), ": ", "gran disminución"))) %>% 
+      mutate(diff_cat = case_when(flu_diff > crit1 ~ paste0("Week", epiweek(target_end_date), ": ", "Large increase"),
+                                  flu_diff > crit2 ~ paste0("Week", epiweek(target_end_date), ": ", "Increase"), 
+                                  flu_diff > crit3 ~ paste0("Week", epiweek(target_end_date), ": ", "Stable"), 
+                                  flu_diff > crit4 ~ paste0("Week", epiweek(target_end_date), ": ", "Decrease"), 
+                                  TRUE ~ paste0("Week", epiweek(target_end_date), ": ", "Large decrease"))) %>% 
       select(target_end_date, target_group, diff_cat) %>% 
-      filter(target_end_date > as.Date(current_ref) - 180) %>%  
+      filter(target_end_date > as.Date(current_ref) - 150) %>%  
       pivot_wider(names_from = target_end_date   ,
                   values_from = diff_cat ) %>% 
       ungroup() %>% 
@@ -576,16 +549,15 @@ fig1_heat <- lapply(unique(categorical_forecast$target_group), function(g) {
       as.matrix(),
     
     categorical_forecast %>% 
-      mutate(hover_label = paste0("Semana",epiweek(target_end_date), 
-                                  "<br>gran aumento: ", round(large_increase*100,1), "%", 
-                                  "<br>aumento: ", round(increase*100,1), "%", 
-                                  "<br>estable: ", round(stable*100,1), "%", 
-                                  "<br>disminución: ", round(decrease*100,1), "%", 
-                                  "<br>gran disminución: ", round(large_decrease*100,1), "%")) %>% 
+      mutate(hover_label = paste0("Week", epiweek(target_end_date), 
+                                  "<br>Large increase: ", round(large_increase*100,1), "%", 
+                                  "<br>Increase: ", round(increase*100,1), "%", 
+                                  "<br>stable: ", round(stable*100,1), "%", 
+                                  "<br>Decrease: ", round(decrease*100,1), "%", 
+                                  "<br>Large decrease: ", round(large_decrease*100,1), "%")) %>% 
       select(target_end_date, target_group, hover_label) %>% 
-      pivot_wider(names_from = target_end_date   ,
+      pivot_wider(names_from = target_end_date,
                   values_from = hover_label ) %>% 
-      # select(-((ncol(.)-1):ncol(.))) %>%
       ungroup() %>% 
       filter(target_group == g) %>% 
       select(-target_group) %>% 
@@ -613,7 +585,7 @@ fig1_heat <- lapply(unique(categorical_forecast$target_group), function(g) {
   border_shape <- list(
     type = "rect",
     x0 = as.Date(current_ref)+(7*(categorical_forecast %>% distinct(horizon) %>% slice(1) %>% pull()))-3.5,        
-    x1 = as.Date(current_ref)+(7*(categorical_forecast %>% distinct(horizon) %>% slice(n()) %>% pull()))+3.5,       
+    x1 = as.Date(current_ref)+(7*(categorical_forecast %>% distinct(horizon) %>% slice(4) %>% pull()))+3.5,       
     y0 = 0,    
     y1 = 1,    
     line = list(color = "black", width = 3),  
@@ -664,14 +636,29 @@ fig1_heat <- lapply(unique(categorical_forecast$target_group), function(g) {
 
 })
 
+legend_labels <- c("Large increase", "Increase", "Stable", "Decrease", "Large decrease")
+legend_colors <- c("#6d085a", "#b83d93", "#e3e3e3", "#3bbbb0", "#006166")
+
+heatmap_legend_annotations <- lapply(seq_along(legend_labels), function(i) {
+  list(
+    x = 1,                # just outside right edge
+    y = -0.12 + 0.04 * (length(legend_labels) - i),  # space vertically
+    xref = "paper",
+    yref = "paper",
+    showarrow = FALSE,
+    text = paste0("<span style='color:", legend_colors[i], "'>\u25A0</span> ", legend_labels[i]),
+    font = list(size = 12, family = "Arial"),
+    align = "left",
+    xanchor = "left"
+  )
+})
+  
 ```
 
-::: {.panel-tabset}
-## Pronóstico
 ```{r}
-#| label: fig-1-message-chile
+#| label: fig-1-message
 #| results: "asis"
-#| eval: !expr isFALSE(chile_available)
+#| eval: !expr isFALSE(forc_available)
 
 cat("
 <div style='
@@ -686,297 +673,138 @@ cat("
   font-family: Arial, sans-serif;
   font-size: 16px;
 '>
-  &#9432;&nbsp; El pronóstico de esta semana no está disponible para Chile debido a la falta de actualización de datos.
+  &#9432;&nbsp; This week&#39;s forecast is not available as data was not updated this week.
 </div>
 ")
 
 ```
 
+
+:::{.panel-tabset}
+## Overall 
 ```{r}
-#| label: fig-1-plotly-Chile
+#| label: fig-1-plotly-overall
 #| results: "asis"
 #| warning: false
-#| eval: !expr chile_available
+#| eval: !expr forc_available
 
-  legend_labels <- c("Gran aumento", "Aumento", "Estable", "Disminución", "Gran Disminución")
-  legend_colors <- c("#6d085a", "#b83d93", "#e3e3e3", "#3bbbb0", "#006166")
-  
-  heatmap_legend_annotations <- lapply(seq_along(legend_labels), function(i) {
-    list(
-      x = 1,                # just outside right edge
-      y = -0.12 + 0.04 * (length(legend_labels) - i),  # space vertically
-      xref = "paper",
-      yref = "paper",
-      showarrow = FALSE,
-      text = paste0("<span style='color:", legend_colors[i], "'>\u25A0</span> ", legend_labels[i]),
-      font = list(size = 12, family = "Arial"),
-      align = "left",
-      xanchor = "left"
-    )
-  })
-  
-  # Ovearll
-    plotly::subplot(
-      fig1[[2]], 
-      fig1_heat[[2]], 
-      nrows = 2, 
-      heights = c(0.9,  0.1), 
-      shareX = FALSE) %>% 
-      layout(
-        yaxis2 = list(title = list(
-                                text = "Hospitalizaciones IRAG", 
-                                font = list(family="Arial", size = 18),
-                                standoff = 15
-                                ),
-                      automargin = TRUE
-                      ),
-        annotations = heatmap_legend_annotations,
-        legend = list(
-          x = 0.01,  
-          y = 0.99,  
-          tracegroupgap = 1,
-          orientation = "v", 
-          font = list(family="Arial", size = 12)  
-        ),
-        margin = list(r = 120)
-      )
-  
-  # Adults
-    plotly::subplot(
-      fig1[[1]], 
-      fig1_heat[[1]], 
-      nrows = 2, 
-      heights = c(0.9,  0.1), 
-      shareX = FALSE) %>% 
-      layout(
-        yaxis2 = list(title = list(
-                                text = "Hospitalizaciones IRAG", 
-                                font = list(family="Arial", size = 18),
-                                standoff = 15
-                                ),
-                      automargin = TRUE
-                      ),
-        annotations = heatmap_legend_annotations,
-        legend = list(
-          x = 0.01,  
-          y = 0.99, 
-          orientation = "v",  
-          font = list(family="Arial", size = 12)  
-        ),
-        margin = list(r = 120)
-      )
-  
-  # Pediatrics
-    plotly::subplot(
-      fig1[[3]], 
-      fig1_heat[[3]], 
-      nrows = 2, 
-      heights = c(0.9,  0.1), 
-      shareX = FALSE) %>% 
-      layout(
-        yaxis2 = list(title = list(
-                                text = "Hospitalizaciones IRAG", 
-                                font = list(family="Arial", size = 18),
-                                standoff = 15
-                                ),
-                      automargin = TRUE
-                      ),
-        annotations = heatmap_legend_annotations,
-        legend = list(
-          x = 0.01,  
-          y = 0.99,  
-          orientation = "v",  
-          font = list(family="Arial", size = 12) 
-        ),
-        margin = list(r = 120)
-      )
-
-```
-
-## Pronóstico con Virus
-```{r}
-#| label: fig1-plotly-b
-#| warning: false
- 
-# plotly data to work with
-fig1_dat_b <- bind_rows(raw_viruses %>% 
-                          rbind(raw_truth %>% filter(target_group == "Overall")) %>% 
-                          pivot_wider(names_from = target,
-                                      values_from = value) %>%  
-                          filter(date < min(forecast_chile$target_end_date)) %>% 
-                          dplyr::select(target_end_date = date, target_group, 
-                                        value = SARI, flu = `SARI influenza`, rsv = `SARI rsv`, covid = `SARI covid`) %>% 
-                          mutate(other = value - flu - rsv - covid),
-                        forecast_chile %>% 
-                          filter(model == "Ensemble") %>% 
-                          pivot_wider(names_from = output_type_id,
-                                      values_from = value) %>% 
-                          dplyr::select(forc_value = `0.5`, target_end_date, target_group, 
-                                        `0.025`, `0.975`, `0.25`, `0.75`)) %>% 
-  filter(target_end_date > as.Date(current_ref) - 120) %>% 
-  filter(target_end_date < as.Date(current_ref) + 30) %>% 
-  group_by(target_group) %>% 
-  complete(target_end_date = seq(min(target_end_date), max(target_end_date), by = "1 week")) %>% 
-  mutate(
-    hindcast_drop = case_when(target_end_date %in% common_dates_chile ~ forc_value, TRUE ~ NA_real_),
-    hindcast = case_when(!(target_end_date %in% common_dates_chile) & 
-                           target_end_date < current_ref ~ forc_value, TRUE ~ NA_real_),
-    nowcast  = case_when(target_end_date == current_ref ~ forc_value, TRUE ~ NA_real_),
-    forecast = case_when(target_end_date > current_ref ~ forc_value, TRUE ~ NA_real_)
-  ) %>% 
-  mutate(
-    week_label = if_else(
-      epiweek(target_end_date) == 1,
-      paste0(lubridate::epiyear(target_end_date), " Semana ", epiweek(target_end_date)),
-      paste0("Semana ", epiweek(target_end_date)))
-    ) 
-
-# Create a list of unique dates and their corresponding epiweek labels for tickvals and ticktext
-tickvals <- unique(fig1_dat_b$target_end_date)
-ticktext <- unique(fig1_dat_b$week_label)
-
-# x axis tick
-two_weeks_ms <- 14 * 24 * 60 * 60 * 1000
-
-# Split the data by 'group' and create a plot for each subset
-fig1b <- lapply(unique(fig1_dat_b$target_group), function(g) {
-  
-  dat <- fig1_dat_b %>% filter(target_group == g) %>% 
-    mutate(
-      purple_line = coalesce(hindcast_drop, hindcast, nowcast),
-      blue_line = coalesce(nowcast, forecast)
-    )
-  
-  #title 
-  g1 <- ifelse(g == "Adults", "Hospitalizaciones IRAG en adultos (mayores de 20 años)",
-               ifelse(g == "Pediatrics", "Hospitalizaciones IRAG en población pediátrica (menores de 20 años)", 
-                      "Hospitalizaciones totales por Infección Respiratoria Aguda Grave (IRAG)"))
-  
-  p <- plot_ly(data = dat, 
-               x = ~target_end_date) %>% 
-  add_trace(y = ~`0.025`, name = "outer_lower", 
-            type = "scatter", mode = "lines", line = list(color = "transparent"),
-            showlegend = FALSE,
-            yaxis = 'y2') %>% 
-  add_trace(y = ~`0.975`, name = "outer_upper", 
-            type = "scatter", mode = "lines", line = list(color = "transparent"),
-            fill = "tonexty", fillcolor="#CBEAFB", 
-            showlegend = FALSE,
-            yaxis = 'y2') %>% 
-  add_trace(y = ~`0.25`, name = "inner_lower", 
-            type = "scatter", mode = "lines", line = list(color = "transparent"),
-            showlegend = FALSE,
-            yaxis = 'y2') %>% 
-  add_trace(y = ~`0.75`, name = "inner_up", 
-            type = "scatter", mode = "lines", line = list(color = "transparent"),
-            fill = "tonexty", fillcolor="#5CC3F0", 
-            showlegend = FALSE,
-            yaxis = 'y2') %>% 
-  add_trace(y = ~value, name = "Notificado", 
-            type = "scatter", mode = "lines+markers",
-            line = list(color = "black"),
-            marker = list(color = "black", size = 8),
-            yaxis = 'y2') %>% 
-  add_trace(y = ~purple_line, name = "purple_line",
-            type = "scatter", mode = "lines",
-            line = list(color = "#7B6FC4"),
-            showlegend = FALSE, yaxis = 'y2') %>%
-  add_trace(y = ~blue_line, name = "blue_line",
-            type = "scatter", mode = "lines",
-            line = list(color = "#2B55D4"),
-            showlegend = FALSE, yaxis = 'y2') %>%
-  add_trace(y = ~hindcast_drop, name = "Hindcast (semanas omitidas)",
-          type = "scatter", mode = "markers",
-          # line = list(color = "#7B6FC4"),
-          marker = list(color = "transparent", size = 8, line = list(color = "#7B6FC4", width = 2)),
-          showlegend = FALSE,
-          yaxis = 'y2') %>%
-  add_trace(y = ~hindcast, name = "Hindcast",
-          type = "scatter", mode = "markers",
-          # line = list(color = "#7B6FC4"),
-          marker = list(color = "#7B6FC4", size = 8),
-          yaxis = 'y2') %>%
-  add_trace(y = ~nowcast, name = "Nowcast",
-          type = "scatter", mode = "markers",
-          # line = list(color = "#1A3A8F"),
-          marker = list(color = "#1A3A8F", size = 8),
-          yaxis = 'y2') %>%
-  add_trace(y = ~forecast, name = "Pronóstico",
-          type = "scatter", mode = "markers",
-          # line = list(color = "#2B55D4"),
-          marker = list(color = "#2B55D4", size = 8),
-          yaxis = 'y2') %>% 
-  add_bars(y = ~other, name = "Other", marker = list(color = "#C0C0C0")) %>% 
-  add_bars(y = ~flu, name = "Influenza", marker = list(color = "#E69F00")) %>% 
-  add_bars(y = ~covid, name = "SARS-CoV-2", marker = list(color = "#DC143C")) %>% 
-  add_bars(y = ~rsv, name = "RSV", marker = list(color = "#4169E1")) %>% 
+plotly::subplot(
+  fig1[[2]], 
+  fig1_heat[[2]], 
+  nrows = 2, 
+  heights = c(0.9,  0.1), 
+  shareX = FALSE) %>% 
   layout(
-    title = list(text = g1, 
-                 x = 0.05, font = list(family="Arial", size = 18, style = "bold")),
-    xaxis = list(title = "",
-                 type = "date", 
-                 tick0 = min(fig1_dat$target_end_date),
-                 dtick = two_weeks_ms,
-                 range = c(as.Date(min(fig1_dat$target_end_date))-5, as.Date(max(fig1_dat$target_end_date))+5),
-                 showgrid = TRUE,          # Disable grid lines on the y-axis
-                 showline = FALSE,         # Remove axis line
-                 tickvals = tickvals,
-                 ticktext = ticktext,
-                 tickangle = -45
-                ),
-    yaxis = list(title = "", showticklabels = FALSE, showgrid = FALSE,
-                 range = c(0, max(c(dat$value, dat$`0.975`), 
-                                  na.rm = TRUE)*1.3)),
-    barmode = "stack",
     yaxis2 = list(title = list(
-                                text = "Hospitalizaciones IRAG", 
-                                font = list(family="Arial", size = 18),
-                                standoff = 15
-                                ), 
-                  automargin = TRUE,
-                  overlaying = "y",
-                  side = "right", showline = TRUE, showticklabels = TRUE, 
-                  tickangle = 0, tickfont = list(family="Arial", size = 18),
-                  range = c(0, max(c(dat$value, dat$`0.975`), 
-                                   na.rm = TRUE)*1.3)),
+                            text = "SARI hospitalizations", 
+                            font = list(family="Arial", size = 18),
+                            standoff = 15
+                            ),
+                  automargin = TRUE
+                  ),
+    annotations = heatmap_legend_annotations,
     legend = list(
-          x = 0.01,  
-          y = 0.99,  
-          tracegroupgap = 1,
-          orientation = "v", 
-          font = list(family="Arial", size = 12)  
-        ),
-    annotations = list(
-      list(x = 0.99, y = 0.98, xref = "paper", yref = "paper", 
-           text = "Bandas internas: Intervalos de predicción al 50%", font = list(size = 10),
-           showarrow = FALSE),
-      list(x = 0.99, y = 0.93, xref = "paper", yref = "paper", 
-           text = "Bandas externas: Intervalos de predicción al 95%", font = list(size = 10),
-           showarrow = FALSE)
+      x = 0.01,  
+      y = 0.99,  
+      tracegroupgap = 1,
+      orientation = "v", 
+      font = list(family="Arial", size = 12)  
     ),
     margin = list(r = 120)
   )
-  
-  return(p)
-})
+```
 
-# plot them
-fig1b[[2]]
+## Adults 
+```{r}
+#| label: fig-1-plotly-adults
+#| results: "asis"
+#| warning: false
+#| eval: !expr forc_available
+
+plotly::subplot(
+  fig1[[1]], 
+  fig1_heat[[1]], 
+  nrows = 2, 
+  heights = c(0.9,  0.1), 
+  shareX = FALSE) %>% 
+  layout(
+    yaxis2 = list(title = list(
+                            text = "SARI hospitalizations", 
+                            font = list(family="Arial", size = 18),
+                            standoff = 15
+                            ),
+                  automargin = TRUE
+                  ),
+    annotations = heatmap_legend_annotations,
+    legend = list(
+      x = 0.01,  
+      y = 0.99, 
+      orientation = "v",  
+      font = list(family="Arial", size = 12)  
+    ),
+    margin = list(r = 120)
+  )
+
+```
+
+## Pediatrics 
+```{r}
+#| label: fig-1-plotly-pediatrics
+#| results: "asis"
+#| warning: false
+#| eval: !expr forc_available
+
+plotly::subplot(
+  fig1[[3]], 
+  fig1_heat[[3]], 
+  nrows = 2, 
+  heights = c(0.9,  0.1), 
+  shareX = FALSE) %>% 
+  layout(
+    yaxis2 = list(title = list(
+                            text = "SARI hospitalizations", 
+                            font = list(family="Arial", size = 18),
+                            standoff = 15
+                            ),
+                  automargin = TRUE
+                  ),
+    annotations = heatmap_legend_annotations,
+    legend = list(
+      x = 0.01,  
+      y = 0.99,  
+      orientation = "v",  
+      font = list(family="Arial", size = 12) 
+    ),
+    margin = list(r = 120)
+  )
 
 ```
 :::
 
-## Desempeño del pronóstico en semanas anteriores
+## Prior weeks forecast performance
 
-Para evaluar el desempeño retrospectivo de los nowcasts y pronósticos de semanas previas, superponemos los datos observados (es decir, las hospitalizaciones por IRAG registradas) de la semana actual, representados con puntos negros, con los resultados del pronóstico (es decir, las hospitalizaciones por IRAG estimadas). Los puntos rojos representan los datos utilizados para el entrenamiento del modelo durante el pronóstico de esa semana. Al comparar los datos observados con lo esperado, podemos evaluar el desempeño de nuestros modelos de pronóstico. Los puntos rojos corresponden a los datos que estaban disponibles en el momento en que se ejecutaron los modelos de previsión cada semana.
+To evaluate the retrospective performance of prior weeks’ hindcast/nowcast/forecasts, we overlay the truth data (i.e., observed SARI cases) from the current week, depicted with the black dots, with the forecast outputs (i.e., predicted SARI cases). By comparing the observed data to what was expected, we can evaluate the performance of our forecast models. The red dots correspond to the data that were available at the time the forecast models were ran each week.
 
 ```{r}
 #| label: retrospective-helper
 #| include: false
 
-generate_forecast_plots <- function(current_week, country, current_forecast) {
+generate_forecast_plots <- function(current_week, current_forecast) {
   # Calculate the number of weeks between the current week and the first forecast week
   num_weeks <- as.integer(difftime(current_week, first_forecast, units = "weeks"))
+  
+  # load time-series (append version)
+  training_data <- read_csv(
+       paste0(here("target-data"),"/time-series.csv"),
+        col_types = cols_only(
+          as_of = col_character(),
+          target_end_date = col_character(),
+          target = col_character(),
+          age_group = col_character(),
+          observation = col_double())
+       ) %>%
+      mutate(as_of = as.Date(parse_date_time(as_of, orders = c("Ymd", "mdy", "mdY"))),
+             target_end_date = as.Date(parse_date_time(target_end_date, orders = c("Ymd", "mdy", "mdY"))))
 
   plots_list <- list()
 
@@ -989,10 +817,8 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
     forecast <- tryCatch({
       # Ensemble forecast output for the given week
       readr::read_csv(
-        paste0(here("model-output", "MicroHub"), 
-               "/",tolower(country), "-output_",current_ref,".csv"),
-        # paste0("../../model-output/MicroHub/",
-        #        tolower(country), "-output_",current_ref,".csv"),
+        paste0(here("auxiliary-data", "microhub-output"), 
+               "/microhub-output_",current_ref,".csv"),
          col_types = cols_only(
             model = col_character(),
             reference_date = col_character(),
@@ -1012,38 +838,20 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
     # Skip this week if file was not found or failed to load
     if (is.null(forecast)) next
     
-    archive_files <- list.files(
-      path    = here("auxiliary-data", "target-data-archive"),
-      # path    = "../target-data-archive/",
-      pattern = ".*-target_\\d{4}_\\d{2}_\\d{2}\\.csv$",
-      full.names = TRUE
-    )
-    
-    archive_dates <- as.Date(
-      regmatches(archive_files, regexpr("\\d{4}_\\d{2}_\\d{2}", archive_files)),
-      format = "%Y_%m_%d"
-    )
-    
+    # pull corresponding training data
     week_start <- current_ref - 6  # Sunday
     week_end   <- current_ref      # Saturday
-    target_archive <- archive_files[archive_dates >= week_start & archive_dates <= week_end]
+    archive_dates <- training_data %>% dplyr::distinct(as_of) %>% pull()
+    target_archive <- archive_dates[archive_dates >= week_start & archive_dates <= week_end]
     if (length(target_archive) != 1) {
       stop(sprintf(
         "Expected 1 archive file for week of %s, found %d.", current_ref, length(target_archive)
       ))
     }
 
-    forc_data <- read_csv(
-       target_archive,
-        col_types = cols_only(
-          date = col_character(),
-          target = col_character(),
-          target_group = col_character(),
-          value = col_double())
-       ) %>% 
-      mutate(date = as.Date(parse_date_time(date, orders = c("Ymd", "mdy", "mdY")))) %>% 
-      filter(target == current_target) %>% 
-      select(date, target_group, value) %>% 
+    forc_data <- training_data %>%
+      filter(as_of == target_archive) %>% 
+      select(date = target_end_date, target_group = age_group, value = observation) %>% 
       arrange(date) 
 
     # Plotly data to work with
@@ -1078,16 +886,16 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
       mutate(
         week_label = if_else(
           epiweek(target_end_date) == 1,
-          paste0(lubridate::epiyear(target_end_date), " Semana ", epiweek(target_end_date)),
-          paste0("Semana ", epiweek(target_end_date)))
+          paste0(lubridate::epiyear(target_end_date), " Week ", epiweek(target_end_date)),
+          paste0("Week ", epiweek(target_end_date)))
       ) 
 
     # Create a list of unique dates and their corresponding epiweek labels for tickvals and ticktext
     tickvals <- seq.Date(min(fig2_dat$target_end_date), nov_1, by = "1 week")
     ticktext <- if_else(
         lubridate::epiweek(tickvals) == 1,
-        paste0(lubridate::epiyear(tickvals), " Semana ", lubridate::epiweek(tickvals)),
-        paste0("Semana ", lubridate::epiweek(tickvals))
+        paste0(lubridate::epiyear(tickvals), " Week ", lubridate::epiweek(tickvals)),
+        paste0("Week ", lubridate::epiweek(tickvals))
       )
 
     # x axis tick
@@ -1104,10 +912,6 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
           blue_line = coalesce(nowcast, forecast)
         )
       
-      g1 <- ifelse(g == "Adults", "Hospitalizaciones IRAG en adultos (mayores de 20 años)",
-                     ifelse(g == "Pediatrics", "Hospitalizaciones IRAG en población pediátrica (menores de 20 años)", 
-                            "Hospitalizaciones totales por Infección Respiratoria Aguda Grave (IRAG)"))
-
       p <- plot_ly(data = dat,
                    x = ~target_end_date) %>%
         add_trace(y = ~`0.025`, name = "outer_lower",
@@ -1128,12 +932,12 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
                   fill = "tonexty", fillcolor = "#5CC3F0",
                   showlegend = FALSE,
                   yaxis = 'y2') %>%
-        add_trace(y = ~value, name = "Notificado",
+        add_trace(y = ~value, name = "Reported",
                   type = "scatter", mode = "lines+markers",
                   line = list(color = "black"),
                   marker = list(color = "black", size = 8),
                   yaxis = 'y2') %>%
-        add_trace(y = ~used_value, name = "Entrenamiento",
+        add_trace(y = ~used_value, name = "Training",
                   type = "scatter", mode = "markers",
                   marker = list(color = "darkred", size = 8),
                   yaxis = 'y2') %>%
@@ -1145,7 +949,7 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
                   type = "scatter", mode = "lines",
                   line = list(color = "#2B55D4"),
                   showlegend = FALSE, yaxis = 'y2') %>%
-        add_trace(y = ~hindcast_drop, name = "Hindcast (semanas omitidas)",
+        add_trace(y = ~hindcast_drop, name = "Hindcast (dropped weeks)",
                 type = "scatter", mode = "markers",
                 # line = list(color = "#7B6FC4"),
                 marker = list(color = "transparent", size = 8, line = list(color = "#7B6FC4", width = 2)),
@@ -1161,18 +965,18 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
                   # line = list(color = "#1A3A8F"),
                   marker = list(color = "#1A3A8F", size = 8),
                   yaxis = 'y2') %>%
-        add_trace(y = ~forecast, name = "Pronóstico",
+        add_trace(y = ~forecast, name = "Forecast",
                   type = "scatter", mode = "markers",
                   # line = list(color = "#2B55D4"),
                   marker = list(color = "#2B55D4", size = 8),
                   yaxis = 'y2') %>% 
-        add_trace(y = ~value, "Y1-axis",
+        add_trace(y = ~value, "Y1-Forecast",
                   type = "scatter", mode = "lines",
                   line = list(color = "transparent"),
                   showlegend = FALSE,
                   yaxis = 'y1') %>%
         layout(
-          title = list(text = g1,
+          title = list(text = "",
                        x = 0.05, font = list(family = "Arial", size = 18, style = "bold")),
           xaxis = list(title = "",
                        type = "date",
@@ -1186,7 +990,7 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
           yaxis = list(title = "",
                        showticklabels = FALSE, showgrid = FALSE,
                        range = c(0, ymax)),
-          yaxis2 = list(title = list( text = "Hospitalizaciones IRAG",
+          yaxis2 = list(title = list( text = "SARI hospitalizations",
                                       font = list(family="Arial", size = 18),
                                       standoff = 15 ),
                         side = "right", showline = TRUE, showticklabels = TRUE,
@@ -1196,10 +1000,10 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
           legend = list(x = 0.01, y = 0.99, orientation = "v", font = list(family = "Arial", size = 12)),
           annotations = list(
             list(x = 0.99, y = 0.98, xref = "paper", yref = "paper",
-                 text = "Bandas internas: Intervalos de predicción al 50%", font = list(family = "Arial", size = 12),
+                 text = "Inner Bands: 50% Prediction Intervals", font = list(family = "Arial", size = 12),
                  showarrow = FALSE),
             list(x = 0.99, y = 0.93, xref = "paper", yref = "paper",
-                 text = "Bandas externas: Intervalos de predicción al 95%", font = list(family = "Arial", size = 12),
+                 text = "Outer Bands: 95% Prediction Intervals", font = list(family = "Arial", size = 12),
                  showarrow = FALSE)
           ),
           margin = list(t = 50, r = 50)
@@ -1223,16 +1027,16 @@ generate_forecast_plots <- function(current_week, country, current_forecast) {
 ```
 
 ```{r}
-#| label: retrospective-plots-chile
+#| label: retrospective-plots
 #| message: false
 #| include: false
 
 # Pick the most recent forecast
-most_recent_chile <- files_chile[which.max(as.Date(dates_chile))]
+most_recent <- forc_files[which.max(as.Date(forc_dates))]
 
 # Ensemble forecast output
 forecast_recent <- readr::read_csv(
-  most_recent_chile,
+  most_recent,
    col_types = cols_only(
       model = col_character(),
       reference_date = col_character(),
@@ -1249,7 +1053,7 @@ mutate(reference_date = as.Date(parse_date_time(reference_date, orders = c("Ymd"
 filter(output_type == "quantile") 
 
 # Compute global y-axis max across all forecast submissions
-global_ymax <- files_chile[grepl(epiyear(current_ref), files_chile) & files_chile != most_recent_chile] %>%
+global_ymax <- forc_files[grepl(epiyear(current_ref), forc_files) & forc_files != most_recent] %>%
   purrr::map(function(f) {
     tryCatch({
       readr::read_csv(f,
@@ -1274,41 +1078,50 @@ global_ymax <- files_chile[grepl(epiyear(current_ref), files_chile) & files_chil
 
 
 # Generate forecast plots
-plots_list_chile <- tryCatch({
-    generate_forecast_plots(current_week = current_ref, country = "Chile", current_forecast = forecast_recent)
+plots_list <- tryCatch({
+    generate_forecast_plots(current_week = current_ref, current_forecast = forecast_recent)
 }, error = function(e) {
     NULL
 })
 
 ```
 :::{.panel-tabset}
-```{r retro-forecast-tabs-chile, echo=FALSE, results='asis', fig.show='hold'}
+```{r retro-forecast-tabs, echo=FALSE, results='asis', fig.show='hold'}
 # setting
-plots_list_chile <- compact(plots_list_chile)
-n_weeks <- length(plots_list_chile)
+plots_list <- compact(plots_list)
+n_weeks <- length(plots_list)
 n_show  <- seq_len(n_weeks)
 plot_order <- c(2, 1, 3)
+tab_labels <- c("Overall", "Adults", "Pediatrics")
 
 # for each week
 for (i in n_show) {
-  wk <- plots_list_chile[[i]]
+  wk <- plots_list[[i]]
   week <- wk$epi_week[1]
 
-  cat(paste0("## Semana ", week, "\n\n"))
+  cat(paste0("## Week ", week, "\n\n"))
+  
+  # open nested tabset
+  cat("::: {.panel-tabset}\n\n")
 
-  for (j in plot_order) {
+  for (k in seq_along(plot_order)) {
+    j <- plot_order[k]
+    cat(paste0("### ", tab_labels[k], "\n\n"))
     html_snip <- renderTags(wk$plots[[j]])$html
     cat(html_snip, "\n\n")
   }
+  
+  # close nested tabset
+  cat(":::\n\n")
 }
 
 ```
 :::
 
 
-## Tabla de Puntuación de Intervalo Ponderado (WIS)
+## Weighted Interval Score (WIS) table
 
-La tabla de Puntuación de Intervalo Ponderado (WIS por sus siglas en inglés) muestra las puntuaciones de intervalo para cada modelo de pronóstico. Los pronósticos con valores absolutos de WIS más bajos se consideran más precisos que aquellos con valores absolutos de WIS más altos. El WIS relativo compara cada modelo de pronóstico con el modelo de referencia regular; el modelo de referencia regular simplemente predice que la actividad de IRAG en las próximas cuatro semanas será una línea recta con una banda de incertidumbre que se expande cada semana. También se reportan los valores de error absoluto medio (MAE por sus siglas en inglés), que es una medida de la precisión del pronóstico o de qué tan bien están funcionando los modelos de pronóstico. Un MAE más bajo indica un pronóstico más preciso.
+The Weighted Interval Score (WIS) table displays the interval scores for each forecast model. Forecasts with lower absolute WIS values are considered more accurate than forecasts with higher absolute WIS values. The relative WIS compares each forecast model to the regular baseline model; the regular baseline model simply predicts that influenza activity in the next five weeks will be a straight line with the band of uncertainty expanding each week. Mean absolute error (MAE) values are also reported which is a measure of forecast accuracy, or how well the forecast models are performing. A lower MAE indicates a more accurate forecast.
 
 ```{r}
 #| label: wis-data
@@ -1321,11 +1134,10 @@ weeks_to_eval <-
   as.character()
 
 # Forecast output
-raw_forecasts_chile <- tryCatch({
+raw_forecasts <- tryCatch({
   list.files(
-    path    = here("model-output", "MicroHub"),
-    # path    = "../../model-output/MicroHub/",
-    pattern = paste0("chile-output_(", paste(format(as.Date(weeks_to_eval), "%Y-%m-%d"), collapse = "|"), ")\\.csv$"),
+    path    = here("auxiliary-data", "microhub-output"),
+    pattern = paste0("microhub-output_(", paste(format(as.Date(weeks_to_eval), "%Y-%m-%d"), collapse = "|"), ")\\.csv$"),
     full.names = TRUE
   ) %>%
   lapply(read.csv) %>%
@@ -1335,11 +1147,11 @@ raw_forecasts_chile <- tryCatch({
 }, error = function(e) NULL)
 
 # data to calculate WIS
-raw_data_chile <- tryCatch({
-  raw_forecasts_chile %>%
+raw_data_wis <- tryCatch({
+  raw_forecasts %>%
     left_join(
       raw_truth %>%
-        filter(date < min(forecast_chile$target_end_date)) %>% 
+        filter(date < min(forecast$target_end_date)) %>% 
         dplyr::select(target_end_date = date, target_group, observed = value) ,
       by = c("target_group", "target_end_date")
     ) %>%
@@ -1349,25 +1161,25 @@ raw_data_chile <- tryCatch({
 
 # calculate scores (used for WIS and other metrics)
 # Error message is expected
-raw_scores_chile <- tryCatch({
-  raw_quantile_chile <- raw_data_chile %>%
+raw_scores <- tryCatch({
+  raw_quantile <- raw_data_wis %>%
     select(-output_type) %>% 
     scoringutils::as_forecast_quantile(
       forecast_unit = c("model", "reference_date", "horizon", "target_end_date", "target_group")
     ) 
-  metrics_chile <- get_metrics(raw_quantile_chile)
-  metrics_chile$interval_coverage_95 <- purrr::partial(interval_coverage, interval_range = 95)
-  raw_quantile_chile %>% 
-    scoringutils::score(metrics = metrics_chile)
+  metrics <- get_metrics(raw_quantile)
+  metrics$interval_coverage_95 <- purrr::partial(interval_coverage, interval_range = 95)
+  raw_quantile %>% 
+    scoringutils::score(metrics = metrics)
 }, error = function(e) NULL)
 
 
 ```
 
 ```{r}
-#| label: wis-message-chile
+#| label: wis-message
 #| results: "asis"
-#| eval: !expr is.null(raw_scores_chile)
+#| eval: !expr is.null(raw_scores)
 
 cat("
 <div style='
@@ -1382,24 +1194,31 @@ cat("
   font-family: Arial, sans-serif;
   font-size: 16px;
 '>
-  &#9432;&nbsp; Dado que los casos observados para el horizonte de pronóstico anterior aún no han sido registrados o reportados, la evaluación no puede realizarse en este momento.
+  &#9432;&nbsp; Since observed case counts for the prior forecasting horizon have not yet been recorded or reported, scoring cannot be performed at this time.
 </div>
 ")
 
 ```
 
 ```{r}
-#| label: chile-tabset-open
+#| label: tabset-open
 #| results: "asis"
-#| eval: !expr "!is.null(raw_scores_chile)"
+#| eval: !expr "!is.null(raw_scores)"
 
 cat(":::{.panel-tabset}\n")
-cat("### WIS de 6 semana\n\n")
 ```
 
 ```{r}
-#| label: chile-wis-6wk
-#| eval: !expr "!is.null(raw_scores_chile)"
+#| label: tab1-header
+#| results: "asis"
+#| eval: !expr "!is.null(raw_scores)"
+
+cat("### 6-week WIS\n\n")
+```
+
+```{r}
+#| label: wis-6wk
+#| eval: !expr "!is.null(raw_scores)"
 
 # Helper function to calculate wis 
 compute_wis <- function(scores, filter_expr = NULL, log_scale = FALSE) {
@@ -1421,7 +1240,7 @@ compute_wis <- function(scores, filter_expr = NULL, log_scale = FALSE) {
 }
 
 # Count number of forecasts evaluated (6 week)
-n_6wk_date <- raw_scores_chile %>%
+n_6wk_date <- raw_scores %>%
   filter(reference_date >= last_forcasting - (7*5)) %>%
   summarise_scores(by = c("model", "target_group","reference_date")) %>%
   mutate(baseline_n_forecasts = sum(!is.na(wis[model == "Regular Baseline"]))) %>%
@@ -1431,52 +1250,52 @@ n_6wk_date <- raw_scores_chile %>%
 
 ### WIS, log-WIS, MAE, and coverage (6-week)
 filter_6wk <- quote(reference_date >= last_forcasting - (7 * 5))
-wis_6wk_chile <- compute_wis(raw_scores_chile, filter_6wk) %>% 
-  left_join(compute_wis(raw_scores_chile, filter_6wk, log_scale = TRUE) %>% 
+wis_6wk <- compute_wis(raw_scores, filter_6wk) %>% 
+  left_join(compute_wis(raw_scores, filter_6wk, log_scale = TRUE) %>% 
               select(model, log_wis = wis, rel_log_wis = rel_wis),
             by = "model")
 
 # WIS table (6-week)
-  n_6wk_date %>%
-    select(model, n_forecasts, per_forecasts) %>%
-    distinct() %>%
-    left_join(wis_6wk_chile,
-              by="model") %>%
-     rename(Modelo = model,
-            `WIS absoluto` = wis,
-            `WIS relativo`= rel_wis,
-            `WIS logarítmico absoluto` = log_wis,
-            `WIS logarítmico relativo`= rel_log_wis,
-            `50% de cobertura (%)` = cov_50,
-            `95% de cobertura (%)` = cov_95,
-            `Nº de Pronósticos enviados`  = n_forecasts,
-            `% Pronósticos enviados` = per_forecasts,
-            `Error absoluto medio` = mae) %>%
-    as.data.frame() %>%
-    arrange(`WIS relativo`, `WIS absoluto`) %>%
-    select(Modelo, `WIS absoluto`, `WIS relativo`, `WIS logarítmico absoluto`, `WIS logarítmico relativo`,
-           `Error absoluto medio`, `50% de cobertura (%)`,
-           `95% de cobertura (%)`,
-           `Nº de Pronósticos enviados`,
-           `% Pronósticos enviados`) %>%
-    datatable(options = list(dom = 't'))
+n_6wk_date %>%
+  select(model, n_forecasts, per_forecasts) %>%
+  distinct() %>%
+  left_join(wis_6wk,
+            by="model") %>%
+   rename(Model = model,
+          `Absolute WIS` = wis,
+          `Relative WIS`= rel_wis,
+          `Absolute log WIS` = log_wis,
+          `Relative log WIS`= rel_log_wis,
+          `50% Coverage (%)` = cov_50,
+          `95% Coverage (%)` = cov_95,
+          `Number of Forecasts Submitted`  = n_forecasts,
+          `% Forecasts Submitted` = per_forecasts,
+          `MAE` = mae) %>%
+  as.data.frame() %>%
+  arrange(`Relative WIS`, `Absolute WIS`) %>%
+  select(Model, `Absolute WIS`, `Relative WIS`, `Absolute log WIS`, `Relative log WIS`,
+         MAE, `50% Coverage (%)`,
+         `95% Coverage (%)`,
+         `Number of Forecasts Submitted`,
+         `% Forecasts Submitted`) %>%
+  datatable(options = list(dom = 't'))
 
 ```
 
 ```{r}
-#| label: chile-tab2-header
+#| label: tab2-header
 #| results: "asis"
-#| eval: !expr "!is.null(raw_scores_chile)"
+#| eval: !expr "!is.null(raw_scores)"
 
-cat("### WIS de temporado\n\n")
+cat("### Season WIS\n\n")
 ```
 
 ```{r}
-#| label: chile-wis-season
-#| eval: !expr "!is.null(raw_scores_chile)"
+#| label: wis-season
+#| eval: !expr "!is.null(raw_scores)"
 
 # Count number of forecasts evaluated (season)
-n_season_date <- raw_scores_chile %>%
+n_season_date <- raw_scores %>%
   summarise_scores(by = c("model", "target_group","reference_date")) %>%
   mutate(baseline_n_forecasts = sum(!is.na(wis[model == "Regular Baseline"]))) %>%
   group_by(model) %>%
@@ -1485,115 +1304,116 @@ n_season_date <- raw_scores_chile %>%
 
 ### WIS, MAE, and coverage (season)
 filter_season <- quote(epiyear(reference_date) >= epiyear(last_forcasting))
-wis_season_chile <- compute_wis(raw_scores_chile, filter_season) %>% 
-  left_join(compute_wis(raw_scores_chile, filter_season, log_scale = TRUE) %>% 
+wis_season <- compute_wis(raw_scores, filter_season) %>% 
+  left_join(compute_wis(raw_scores, filter_season, log_scale = TRUE) %>% 
               select(model, log_wis = wis, rel_log_wis = rel_wis),
             by = "model")
 
 # WIS table
-  n_season_date %>%
-    select(model, n_forecasts, per_forecasts) %>%
-    distinct() %>%
-    left_join(wis_season_chile,
-              by="model") %>%
-     rename(Modelo = model,
-            `WIS absoluto` = wis,
-            `WIS relativo`= rel_wis,
-            `WIS logarítmico absoluto` = log_wis,
-            `WIS logarítmico relativo`= rel_log_wis,
-            `50% de cobertura (%)` = cov_50,
-            `95% de cobertura (%)` = cov_95,
-            `Nº de Pronósticos enviados`  = n_forecasts,
-            `% Pronósticos enviados` = per_forecasts,
-            `Error absoluto medio` = mae) %>%
-    as.data.frame() %>%
-    arrange(`WIS relativo`, `WIS absoluto`) %>%
-    select(Modelo, `WIS absoluto`, `WIS relativo`, `WIS logarítmico absoluto`, `WIS logarítmico relativo`,
-           `Error absoluto medio`, `50% de cobertura (%)`,
-           `95% de cobertura (%)`,
-           `Nº de Pronósticos enviados`,
-           `% Pronósticos enviados`) %>%
-    datatable(options = list(dom = 't'))
+n_season_date %>%
+  select(model, n_forecasts, per_forecasts) %>%
+  distinct() %>%
+  left_join(wis_season,
+            by="model") %>%
+   rename(Model = model,
+          `Absolute WIS` = wis,
+          `Relative WIS`= rel_wis,
+          `Absolute log WIS` = log_wis,
+          `Relative log WIS`= rel_log_wis,
+          `50% Coverage (%)` = cov_50,
+          `95% Coverage (%)` = cov_95,
+          `Number of Forecasts Submitted`  = n_forecasts,
+          `% Forecasts Submitted` = per_forecasts,
+          MAE = mae) %>%
+  as.data.frame() %>%
+  arrange(`Relative WIS`, `Absolute WIS`) %>%
+  select(Model, `Absolute WIS`, `Relative WIS`, `Absolute log WIS`, `Relative log WIS`,
+         MAE, `50% Coverage (%)`,
+         `95% Coverage (%)`,
+         `Number of Forecasts Submitted`,
+         `% Forecasts Submitted`) %>%
+  datatable(options = list(dom = 't'))
 
 ```
 
 ```{r}
-#| label: chile-tabset-close
+#| label: tabset-close
 #| results: "asis"
-#| eval: !expr "!is.null(raw_scores_chile)"
+#| eval: !expr "!is.null(raw_scores)"
 
 cat(":::\n")
 ```
 
-## Ingresos hospitalarios por IRAG reportados semanalmente
+## Weekly reported influenza cases
 
-Este gráfico interactivo muestra cómo los datos de casos de influenza evolucionan y se estabilizan con el tiempo a medida que se envían nuevos datos a FluNET. Debido a que los datos de FluNET pueden revisarse o completarse retrospectivamente después de la notificación inicial, este gráfico está diseñado para visualizar tanto la disponibilidad de datos para la previsión como el grado en que estos datos se estabilizan con el tiempo. Al pasar el cursor sobre cualquier elemento, se mostrarán los detalles correspondientes.
+This interactive chart shows how the influenza case data
+evolve and stabilize over time as new data are submitted to FluNET. Because
+FluNET data can be revised or backfilled after initial reporting, this plot is
+designed to visualize both the availability of data for forecasting and the 
+extent to which these data stabilize over time. Hovering over
+any element will display the corresponding details.
 
-Los <u>puntos de colores</u> representan envíos sucesivos de datos. El color indica cuántas semanas después de la primera semana notificable se realizó cada envío, es decir, semanas desde que los datos de esa semana pudieron estar completos por primera vez. El punto amarillo marca un envío realizado en la primera semana notificable (0 semanas), mientras que los puntos de color rosa/morado más oscuro indican envíos posteriores a medida que los países actualizan o completan retrospectivamente sus datos. El número máximo de semanas desde la primera semana notificable en una semana determinada está limitado a cinco en este gráfico, ya que las revisiones significativas de datos más allá de ese punto son poco frecuentes y reducen la claridad visual cuando se representan gráficamente. Para garantizar que los envíos con valores idénticos sigan siendo visibles individualmente en lugar de colapsar en un solo punto, los puntos naranjas se desplazan horizontalmente mediante un pequeño desplazamiento aleatorio.
+The <u>colored dots</u> represent successive data submissions. The color 
+indicates how many weeks after the first reportable week each submission was 
+made - that is, weeks since data for that week could first be complete. 
+The yellow dot marks a submission made in the first reportable week (0 weeks),
+while darker pink/purple dots indicate later submissions as
+countries update or backfill their data. The maximum number of submissions since 
+first reportable week is capped at five in this chart, 
+as meaningful data revisions beyond that point are uncommon and reduce visual 
+clarity when graphed. To ensure that submissions with identical values remain 
+individually visible rather than collapsing into a single dot, the orange dots 
+are horizontally jittered by a small random offset.
 
-La <u>línea negra</u> conecta los datos notificados más recientemente para cada semana epidemiológica y representa los recuentos de casos de influenza más actualizados. Cuando el punto negro aparece cerca de los puntos amarillos/naranjas anteriores, los datos son relativamente estables y requirieron poca o ninguna revisión.
+The <u>black line</u> connects the most recently reported data for each epidemiological
+week and represents the most up-to-date influenza case counts. When the black
+dot appears close to earlier yellow/orange dots, the data are relatively 
+stable and required little to no revision.
 
 ```{r}
 #| label: stab-data
 #| include: false
 
-# Collect current year files
-file_list <- list.files(
-  path       = here("auxiliary-data", "target-data-archive"),
-  # path       = "../target-data-archive",
-  pattern    = paste0("chile-target_", epiyear(current_ref), ".*\\.csv$"),
-  full.names = TRUE
-)
+# load time-series (append version)
+training_data <- read_csv(
+     paste0(here("target-data"),"/time-series.csv"),
+      col_types = cols_only(
+        as_of = col_character(),
+        target_end_date = col_character(),
+        target = col_character(),
+        age_group = col_character(),
+        observation = col_double())
+     ) %>%
+    mutate(as_of = as.Date(parse_date_time(as_of, orders = c("Ymd", "mdy", "mdY"))),
+           target_end_date = as.Date(parse_date_time(target_end_date, orders = c("Ymd", "mdy", "mdY"))))
 
-# Manipulation function
-manipulate <- function(df, filepath) {
-  
-  file_date <- str_extract(basename(filepath), "\\d{4}_\\d{2}_\\d{2}") %>% ymd()
-  
-  df  %>% 
-    group_by(target_group, date) %>%
+# manipulate
+currentyear <- training_data %>% 
+  group_by(as_of, age_group, target_end_date) %>%
     summarise(
-      value = sum(value),
+      value = sum(observation),
       .groups = "drop"
     ) %>%
-    arrange(target_group, date) %>% 
-    mutate(admit_week = epiweek(date),
-           publish_year = epiyear(file_date),
-           publish_week = epiweek(file_date),
-           publish_date = as.Date(file_date)) %>%
-    select(target_group,
-           date, admit_week, publish_year, publish_week, publish_date,
-           value)
-}
-
-# Load, manipulate, and append 
-chile_currentyear <- file_list %>% 
-  map(~ {
-    df <- read_csv(.x, 
-                   col_types = cols_only(
-                      date = col_character(),
-                      target = col_character(),
-                      target_group = col_character(),
-                      value = col_double())
-                   ) %>% 
-              mutate(date = as.Date(parse_date_time(date, orders = c("Ymd", "mdy", "mdY")))) %>% 
-              filter(target == current_target) %>% 
-              select(date, target_group, value)
-    manipulate(df, .x)
-  }) %>%
-  list_rbind() %>% 
+  arrange(as_of, age_group, target_end_date) %>% 
+  group_by(as_of) %>%
+  mutate(admit_week = epiweek(target_end_date),
+         publish_year = epiyear(as_of),
+         publish_week = epiweek(as_of)) %>%
+  select(target_group = age_group, 
+         date = target_end_date, admit_week, publish_year, publish_week, publish_date = as_of,
+         value) %>% 
   filter(epiyear(date) >= epiyear(current_ref)) %>% 
   arrange(target_group, date, publish_date) %>% 
   group_by(target_group, date) %>% 
   mutate(week_since = (publish_week - 1) - admit_week)
 
-chile_currentyear_last <- chile_currentyear %>% 
+currentyear_last <- currentyear %>% 
   slice_tail(n = 1) %>%      
   ungroup() %>%
   arrange(admit_week)
 
 target_week <- epiweek(current_ref) - 1
-chile_currentyear_first <- chile_currentyear %>% 
+currentyear_first <- currentyear %>% 
   slice_head(n = 1) %>%      
   group_by(target_group) %>% 
   complete(admit_week = full_seq(c(admit_week, target_week), 1)) %>%
@@ -1601,7 +1421,7 @@ chile_currentyear_first <- chile_currentyear %>%
   arrange(target_group, admit_week)
 
 set.seed(42)
-chile_currentyear <- chile_currentyear %>%
+currentyear <- currentyear %>%
   arrange(desc(week_since)) %>% 
   filter(week_since <= 5) %>% 
   mutate(x_jitter = admit_week + runif(n(), min = -0.1, max = 0.1))
@@ -1612,7 +1432,7 @@ chile_currentyear <- chile_currentyear %>%
 #| label: stab-graph-helper
 #| include: false
 
-make_stab_plot <- function(group, currentyear, currentyear_last, currentyear_first, country_lag) {
+make_stab_plot <- function(group, currentyear, currentyear_last, currentyear_first) {
   
   range <- currentyear %>%
     filter(target_group == group) %>%
@@ -1621,9 +1441,9 @@ make_stab_plot <- function(group, currentyear, currentyear_last, currentyear_fir
               y_max = max(value, na.rm = TRUE), .groups = "drop")
 
   finalized_label <- paste0(
-    "Semana ",
+    "Week ",
     unique(currentyear_last %>% filter(target_group == group) %>% pull(publish_week)),
-    " datos"
+    " data"
   )
   
   unique_weeks <- currentyear_first %>% 
@@ -1635,7 +1455,7 @@ make_stab_plot <- function(group, currentyear, currentyear_last, currentyear_fir
   plot_ly(data = currentyear %>% filter(target_group == group), x = ~x_jitter) %>%
     add_trace(
       y = ~value, name = "Submission dots", type = "scatter", mode = "markers",
-      text = ~paste0("Semana ", admit_week, ": ", value, " (disponible en la semana ", publish_week, ")"),
+      text = ~paste0("Week ", admit_week, ": ", value, " (available in week ", publish_week, ")"),
       hovertemplate = "%{text}<extra></extra>", showlegend = FALSE,
       marker = list(
         color = ~week_since,
@@ -1646,8 +1466,7 @@ make_stab_plot <- function(group, currentyear, currentyear_last, currentyear_fir
           list(0.6, "#E91E8C"), list(0.8, "#7B1FA2"), list(1.0, "#4A148C")
         ),
         size = 10, opacity = 0.8,
-        colorbar = list(title = "Semanas desde<br>la primera<br>semana reportable", tickfont = list(family = "Arial", size = 12),
-                        # title = "Weeks since first reportable week", tickfont = list(family = "Arial", size = 12),
+        colorbar = list(title = "Weeks since<br>first reportable week", tickfont = list(family = "Arial", size = 12),
                         tickmode = "array", tickvals = list(0,1,2,3,4,5),
                         ticktext = list("0","1","2","3","4","5"))
       )
@@ -1659,9 +1478,14 @@ make_stab_plot <- function(group, currentyear, currentyear_last, currentyear_fir
     ) %>%
     add_trace(
       data = currentyear_last %>% filter(target_group == group),
-      x = ~admit_week, y = ~value, name = finalized_label, type = "scatter", mode = "lines+markers",
-      text = ~paste0("Valor actual: ", value), hovertemplate = "%{text}<extra></extra>",
-      line = list(color = "black", width = 1.5), marker = list(color = "black", size = 10),
+      x = ~admit_week, 
+      y = ~value, 
+      name = finalized_label, 
+      type = "scatter", mode = "lines+markers",
+      text = ~paste0("Current value: ", value), 
+      hovertemplate = "%{text}<extra></extra>",
+      line = list(color = "black", width = 1.5), 
+      marker = list(color = "black", size = 10),
       showlegend = TRUE
     ) %>%
     layout(
@@ -1669,11 +1493,11 @@ make_stab_plot <- function(group, currentyear, currentyear_last, currentyear_fir
       xaxis = list(
         title = "",
         range = c(min(unique_weeks) - 0.5, max(unique_weeks) + 0.5),
-        tickvals = unique_weeks, ticktext = paste("Semana", unique_weeks),
+        tickvals = unique_weeks, ticktext = paste("Week", unique_weeks),
         tickfont = list(family = "Arial", size = 12), tickangle = -45,
         showgrid = TRUE, gridcolor = "lightgrey", gridwidth = 1
       ),
-      yaxis  = list(title = "Ingresos hospitalarios por IRAG", showline = TRUE,
+      yaxis  = list(title = "Number of SARI hospitalizations", showline = TRUE,
                     tickfont = list(family = "Arial", size = 14),
                     range = c(0, max(currentyear$value, na.rm = TRUE) * 1.3)),
       showlegend = TRUE,
@@ -1686,58 +1510,55 @@ make_stab_plot <- function(group, currentyear, currentyear_last, currentyear_fir
 ```
 
 ::: {.panel-tabset}
-## Totales
+## Overall
 ```{r}
-#| label: stab-graph-chile-1
+#| label: stab-graph-1
 #| fig.width: 14
 #| fig.height: 10
 
 make_stab_plot("Overall", 
-               currentyear = chile_currentyear, 
-               currentyear_last= chile_currentyear_last, 
-               currentyear_first= chile_currentyear_first,
-               country_lag = lag_weeks)
+               currentyear = currentyear, 
+               currentyear_last= currentyear_last, 
+               currentyear_first= currentyear_first)
 
 ```
 
-## Adultos
+## Adults
 ```{r}
-#| label: stab-graph-chile-2
+#| label: stab-graph-2
 #| fig.width: 14
 #| fig.height: 10
 
 make_stab_plot("Adults", 
-               currentyear = chile_currentyear, 
-               currentyear_last= chile_currentyear_last, 
-               currentyear_first= chile_currentyear_first,
-               country_lag = lag_weeks)
+               currentyear = currentyear, 
+               currentyear_last= currentyear_last, 
+               currentyear_first= currentyear_first)
 
 ```
 
-## Pediátrica
+## Pediatrics
 ```{r}
-#| label: stab-graph-chile-3
+#| label: stab-graph-3
 #| fig.width: 14
 #| fig.height: 10
 
 make_stab_plot("Pediatrics", 
-               currentyear = chile_currentyear, 
-               currentyear_last= chile_currentyear_last, 
-               currentyear_first= chile_currentyear_first,
-               country_lag = lag_weeks)
+               currentyear = currentyear, 
+               currentyear_last= currentyear_last, 
+               currentyear_first= currentyear_first)
 
 ```
 :::
 
-## Apéndice 
+## Appendix 
 
-### Tabla A1: Umbrales de pronóstico categórico por grupo de edad
+### Table A1: categorical forecast thresholds
 
 ```{r}
-#| label: appendix-table-chile
+#| label: appendix-table
 #| results: "asis"
 
-if (!chile_available) {
+if (!forc_available) {
   
   cat("
 <div style='
@@ -1752,35 +1573,32 @@ if (!chile_available) {
   font-family: Arial, sans-serif;
   font-size: 16px;
 '>
-  &#9432;&nbsp; El pronóstico de esta semana no está disponible para Chile debido a la falta de actualización de datos.
+  &#9432;&nbsp; This week&#39;s forecast is not available as data was not updated this week.
 </div>
 ")
   
 } else {
   
-  diff_data_chile %>%
+  diff_data %>%
     mutate(order = case_when(target_group == "Overall" ~ 1,
                              target_group == "Adults" ~ 2,
-                             target_group == "Pediatrics" ~ 3),
-         target_group = case_when(target_group == "Overall" ~ "Totales",
-                                  target_group == "Adults" ~ "Adultos",
-                                  target_group == "Pediatrics" ~ "Pediátricos")) %>% 
-    mutate(horizon = wk_diff+(chile_horizons[1]-1)) %>% 
-    filter(horizon %in% chile_horizons) %>% 
+                             target_group == "Pediatrics" ~ 3)) %>% 
+    mutate(horizon = wk_diff+(horizons[1]-1)) %>% 
+    filter(horizon %in% horizons) %>% 
     arrange(order) %>% 
     ungroup() %>% 
     select(-c(order, value)) %>%
     relocate(target_group, wk_diff, horizon) %>% 
-    rename("Grupo de edad" = target_group,
-           "Horizonte" = horizon,
-           "diferencia de semana" = wk_diff,
-           "Percentil 95<br>(gran aumento)" = crit1,
-           "Percentil 75<br>(aumento)" = crit2,
-           "Percentil 25<br>(disminución)" = crit3,
-           "Percentil 5<br>(gran disminución)" = crit4) %>% 
+    rename("Age group" = target_group,
+           "Horizon" = horizon,
+           "Week difference" = wk_diff,
+           "95th percentile<br>(large increase)" = crit1,
+           "75th percentile<br>(increase)" = crit2,
+           "25th percentile<br>(decrease)" = crit3,
+           "5th percentile<br>(large  decrease)" = crit4) %>% 
     kable(align = "c", format = 'html', escape = FALSE) %>%
     kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 
-    row_spec(chile_separator,                                                            # Separator between groups
+    row_spec(separator,                                                            # Separator between groups
              extra_css = "border-bottom: 1.3px solid black;") %>%
     column_spec(1, bold = TRUE, color = "#000000", width = "3cm") 
   

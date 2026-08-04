@@ -9,8 +9,8 @@ on:
       name:
         description: 'Run weekly report'
         required: false
-  schedule:
-    - cron: '00 12 * * 4'
+  # schedule:
+  #   - cron: '00 12 * * 4'
 
 jobs:
   run-weekly-report:
