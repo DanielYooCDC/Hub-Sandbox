@@ -22,7 +22,7 @@ current_as_of <- Sys.Date()
 base_target_data <- cbind(
   base_target_data,
   data.frame(as_of = as.Date(current_as_of))
-) %>% mutate(target="SARI") |> 
+) |> mutate(target="SARI") |> 
   dplyr::select(target_end_date = date, age_group = target_group, observation = value, as_of, target) 
 
 # get existing time series data
@@ -36,6 +36,7 @@ if (file.exists(time_series_file)) {
 # if the existing time series already has entries for the as_of date we're using,
 # remove those entries (to avoid duplicates if this script is re-run)
 existing_time_series <- existing_time_series |>
+  dplyr::mutate(target_end_date  = as.Date(target_end_date)) |> 
   dplyr::filter(.data[["as_of"]] != as.Date(current_as_of))
 
 # update time series
