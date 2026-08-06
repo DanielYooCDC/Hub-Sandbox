@@ -3,7 +3,13 @@ name: Split Micro-Hub Submissions
 permissions:
   contents: write
 
+# on:
+#   push:
+#     paths:
+#       - 'auxiliary-data/microhub-output/**'
+
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'auxiliary-data/microhub-output/**'
