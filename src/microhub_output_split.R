@@ -52,7 +52,7 @@ for (path in files) {
     sub <- df[df[["model"]] == mdl, , drop = FALSE]
     
     # Drop the model column, keep all remaining columns.
-    sub <- sub[, setdiff(names(sub), model_col), drop = FALSE] 
+    sub <- sub[, setdiff(names(sub), "model"), drop = FALSE] 
     sub <- cbind(sub[1], target = "SARI", sub[-1])
     names(sub)[names(sub) == "target_group"] <- "age_group"
     
