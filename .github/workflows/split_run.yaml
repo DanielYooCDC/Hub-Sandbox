@@ -1,0 +1,60 @@
+name: Split Micro-Hub Submissions
+
+permissions:
+  contents: write
+
+on:
+  push:
+    paths:
+      - 'auxiliary/micro-hub/**'
+
+jobs:
+  microhub-output-split:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Need at least 2 commits to diff against; falls back gracefully
+          # to processing all files when this is the very first commit.
+          fetch-depth: 2
+    
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          install-r: false
+          use-public-rspm: true
+    
+      - name: Determine changed files
+        id: changed
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER:  ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+          BASE=$(git hash-object -t tree /dev/null)
+          else
+            BASE="$BEFORE"
+          fi
+          FILES=$(git diff --name-only --diff-filter=AM "$BASE" "$AFTER" -- 'auxiliary/micro-hub/*.csv')
+          {
+            echo "files<<EOF"
+            echo "$FILES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+        
+      - name: Split files
+        if: steps.changed.outputs.files != ''
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
+        run: Rscript src/microhub_output_split.R
+    
+      - name: Commit changes
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add -A
+          git commit -m "MicroHub output split" || echo "No changes to commit"
+          git push
