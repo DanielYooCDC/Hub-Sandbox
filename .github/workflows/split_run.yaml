@@ -6,7 +6,7 @@ permissions:
 on:
   push:
     paths:
-      - 'auxiliary/micro-hub/**'
+      - 'auxiliary/microhub-output/**'
 
 jobs:
   microhub-output-split:
