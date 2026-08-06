@@ -11,13 +11,13 @@ arrange_cols <- function(df, cols) {
 }
 
 # Where we'll save things
-time_series_file <- paste0(here::here("target-data"), "/time-series.csv")
-oracle_output_file <- paste0(here::here("target-data"), "/oracle-output.csv")
+time_series_file <- here::here("target-data", "time-series.csv")
+oracle_output_file <- here::here("target-data", "oracle-output.csv")
 
 # get target data
-base_target_data <- readr::read_csv(file = paste0(here::here("target-data"), "/chile-target.csv"))
+base_target_data <- readr::read_csv(file = here::here("target-data", "microhub-target.csv"))
 
-current_as_of <- #### GitHub action run date
+current_as_of <- Sys.Date()
 
 base_target_data <- cbind(
   base_target_data,
@@ -45,7 +45,7 @@ updated_time_series <- arrange_cols(updated_time_series, time_series_col_order)
 updated_time_series <- updated_time_series |>
   dplyr::select(all_of(time_series_col_order), everything())
 
-# Specify sort order for target data files (not absolutely necessary, but helps human readibility and diffs)
+# Specify sort order for target data files
 oracle_output_cols <- c(
   "target", "age_group", "horizon", "target_end_date", "output_type", "output_type_id", "oracle_value", "as_of")
 oracle_include_after = "2026-05-30"

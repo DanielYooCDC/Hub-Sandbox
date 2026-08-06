@@ -9,8 +9,8 @@ on:
       name:
         description: 'Update target data'
         required: false
-  schedule:
-    - cron: '00 12 * * 3'
+  # schedule:
+  #   - cron: '00 12 * * 3'
 
 jobs:
   update-target-data:
@@ -33,15 +33,18 @@ jobs:
       - name: Install dependencies
         shell: Rscript {0}
         run: |
-          install.packages(c("httr","dplyr","lubridate","readr","MMWRweek","curl"))
+          install.packages(c("httr","dplyr","lubridate","readr","MMWRweek","curl","here"))
           
-      - name: Generate target csv files
+      - name: Generate target csv file
         run:  |
           cd src
           # make sure the folder exists
           mkdir -p ../target-data
-          mkdir -p ../auxiliary-data/target-data-archive
           Rscript get_target_data.R
+          
+      - name: Generate time-series and oracle-output
+        run:  |
+          Rscript get_target_data_hubverse.R
           
       - name: Commit report
         run: |

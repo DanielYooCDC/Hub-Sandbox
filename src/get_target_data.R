@@ -4,6 +4,7 @@ library(readr)
 library(httr)
 library(MMWRweek)
 library(curl)
+library(here)
 
 # pull data from FluID API
 who_raw <- {
@@ -23,7 +24,10 @@ who_raw <- {
 }
 rm(response)
 
-# countries to work with
+# load country-specific population
+population <- read_csv(here("auxiliary-data", "target-population.csv"))
+
+# sample country to work with
 who <- who_raw %>% 
   filter(COUNTRY_AREA_TERRITORY == "Chile") %>% 
   filter(MMWR_YEAR >= 2022) %>% 
@@ -55,8 +59,9 @@ who_overall <- who_recode %>%
 
 who_final <- who_recode %>% 
   rbind(who_overall) %>% 
+  left_join(population, by = "target_group") %>%
   select(-COUNTRY) %>% 
   arrange(date, target_group)
 
 # output data
-write_csv(who_final, file = "../target-data/chile-target.csv")
+write_csv(who_final, file = here("target-data", "microhub-target.csv"))
