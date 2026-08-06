@@ -38,7 +38,7 @@ jobs:
           else
             BASE="$BEFORE"
           fi
-          FILES=$(git diff --name-only --diff-filter=AM "$BASE" "$AFTER" -- 'auxiliary/micro-hub/*.csv')
+          FILES=$(git diff --name-only --diff-filter=AM "$BASE" "$AFTER" -- 'auxiliary-data/microhub-output/*.csv')
           {
             echo "files<<EOF"
             echo "$FILES"
