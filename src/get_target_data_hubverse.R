@@ -16,19 +16,22 @@ time_series_file <- here::here("target-data", "time-series.csv")
 oracle_output_file <- here::here("target-data", "oracle-output.csv")
 
 # get target data
-base_target_data <- readr::read_csv(file = here::here("target-data", "microhub-target.csv"))
+base_target_data <- readr::read_csv(file = here::here("target-data", "microhub-target.csv")) |> 
+  mutate(date = as.Date(lubridate::parse_date_time(date, orders = c("Ymd", "mdy", "mdY")))) 
 
-current_as_of <- as.Date("2026-06-24")  # Sys.Date()
+current_as_of <- "2026-06-24"  # Sys.Date()
 
 base_target_data <- cbind(
   base_target_data,
   data.frame(as_of = as.Date(current_as_of))
-) |> mutate(target="SARI") |> 
+) |> dplyr::mutate(target="SARI") |> 
   dplyr::select(target_end_date = date, age_group = target_group, observation = value, as_of, target) 
 
 # get existing time series data
 if (file.exists(time_series_file)) {
-  existing_time_series <- readr::read_csv(file = time_series_file)
+  existing_time_series <- readr::read_csv(file = time_series_file) |> 
+    mutate(as_of = as.Date(lubridate::parse_date_time(as_of, orders = c("Ymd", "mdy", "mdY"))),
+           target_end_date = as.Date(lubridate::parse_date_time(target_end_date, orders = c("Ymd", "mdy", "mdY")))) 
 } else {
   existing_time_series <- data.frame(matrix(ncol = length(colnames(base_target_data)), nrow = 0))
   colnames(existing_time_series) <- colnames(base_target_data)
@@ -67,5 +70,5 @@ oracle_output <- oracle_output |>
   dplyr::select(all_of(oracle_output_cols), everything())
 
 # write time series
-write.csv(updated_time_series, file = time_series_file, row.names = FALSE)
-write.csv(oracle_output, file = oracle_output_file, row.names = FALSE)
+readr::write.csv(updated_time_series, file = time_series_file)
+readr::write.csv(oracle_output, file = oracle_output_file)
