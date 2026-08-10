@@ -1,4 +1,4 @@
-name: Split Micro-Hub Submissions
+name: Update time-series and oracle-output
 
 permissions:
   contents: write
