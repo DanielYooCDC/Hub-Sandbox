@@ -42,10 +42,10 @@ jobs:
           mkdir -p ../target-data
           Rscript get_target_data.R
           
-      - name: Generate time-series and oracle-output
-        run:  |
-          cd src
-          Rscript get_target_data_hubverse.R
+      # - name: Generate time-series and oracle-output
+      #   run:  |
+      #     cd src
+      #     Rscript get_target_data_hubverse.R
           
       - name: Commit report
         run: |

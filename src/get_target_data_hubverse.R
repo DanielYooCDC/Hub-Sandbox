@@ -18,7 +18,7 @@ oracle_output_file <- here::here("target-data", "oracle-output.csv")
 # get target data
 base_target_data <- readr::read_csv(file = here::here("target-data", "microhub-target.csv"))
 
-current_as_of <- Sys.Date()
+current_as_of <- as.Date("2026-06-24")  # Sys.Date()
 
 base_target_data <- cbind(
   base_target_data,
