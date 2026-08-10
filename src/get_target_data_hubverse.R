@@ -70,5 +70,5 @@ oracle_output <- oracle_output |>
   dplyr::select(all_of(oracle_output_cols), everything())
 
 # write time series
-readr::write.csv(updated_time_series, file = time_series_file)
-readr::write.csv(oracle_output, file = oracle_output_file)
+readr::write_csv(updated_time_series, file = time_series_file)
+readr::write_csv(oracle_output, file = oracle_output_file)
