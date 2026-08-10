@@ -1,6 +1,7 @@
 library(dplyr)
 library(lubridate)
 library(readr)
+library(here)
 
 # helper function
 arrange_cols <- function(df, cols) {
@@ -49,7 +50,7 @@ updated_time_series <- updated_time_series |>
 # Specify sort order for target data files
 oracle_output_cols <- c(
   "target", "age_group", "horizon", "target_end_date", "output_type", "output_type_id", "oracle_value", "as_of")
-oracle_include_after = "2026-05-30"
+oracle_include_after = "2026-05-16"
 oracle_output <- base_target_data[base_target_data$target_end_date >= oracle_include_after, ] |> 
   rename(oracle_value = observation) |> 
   dplyr::cross_join(

@@ -1,0 +1,46 @@
+name: Split Micro-Hub Submissions
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'target-data/**'
+
+jobs:
+  microhub-output-split:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+    
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          install-r: false
+          use-public-rspm: true
+          
+      - name: Install dependencies
+        shell: Rscript {0}
+        run: |
+          install.packages(c("dplyr","lubridate","readr","here"))
+        
+      - name: Generate time-series and oracle-output
+        run:  |
+          Rscript src/get_target_data_hubverse.R
+    
+      - name: Commit changes
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add -A
+          git commit -m "MicroHub output split" || echo "No changes to commit"
+          git pull --rebase origin main
+          git push
