@@ -28,7 +28,7 @@ current_ref  <- lubridate::ceiling_date(current_date, "week") - lubridate::days(
 
 # forecasting files
 forc_files <- list.files(
-  path    = here("auxiliary-data", "microhub-output"),
+  path    = here("model-output", "MicroHub"),
   pattern = ".*-output_\\d{4}-\\d{2}-\\d{2}\\.csv$",
   full.names = TRUE
 )
@@ -47,7 +47,7 @@ first_forecast <- forc_dates %>%
 
 # Truth data this week
 raw_truth <- read_csv(
-  here("target-data", "chile-target.csv"),
+  here("target-data", "microhub-target.csv"),
     col_types = cols_only(
       date = col_character(),
       target_group = col_character(),
@@ -167,7 +167,7 @@ Each week is also summarized as one of five trend categories, shown in the color
 #| label: fig1-check
 #| include: false
 
-forc_filepath <- paste0(here("auxiliary-data", "microhub-output"),
+forc_filepath <- paste0(here("model-output", "MicroHub"),
                          "/microhub-output_", current_ref, ".csv")
 forc_available <- file.exists(forc_filepath)
 ```
@@ -817,7 +817,7 @@ generate_forecast_plots <- function(current_week, current_forecast) {
     forecast <- tryCatch({
       # Ensemble forecast output for the given week
       readr::read_csv(
-        paste0(here("auxiliary-data", "microhub-output"), 
+        paste0(here("model-output", "MicroHub"), 
                "/microhub-output_",current_ref,".csv"),
          col_types = cols_only(
             model = col_character(),
@@ -1136,14 +1136,14 @@ weeks_to_eval <-
 # Forecast output
 raw_forecasts <- tryCatch({
   list.files(
-    path    = here("auxiliary-data", "microhub-output"),
+    path    = here("model-output", "MicroHub"),
     pattern = paste0("microhub-output_(", paste(format(as.Date(weeks_to_eval), "%Y-%m-%d"), collapse = "|"), ")\\.csv$"),
     full.names = TRUE
   ) %>%
   lapply(read.csv) %>%
   do.call(rbind, .) %>% 
-  mutate(reference_date = as.Date(reference_date),
-         target_end_date = as.Date(target_end_date))
+  mutate(reference_date = as.Date(parse_date_time(reference_date, orders = c("Ymd", "mdy", "mdY"))),
+         target_end_date = as.Date(parse_date_time(target_end_date, orders = c("Ymd", "mdy", "mdY"))))
 }, error = function(e) NULL)
 
 # data to calculate WIS
