@@ -44,7 +44,15 @@ for (path in files) {
   
   file_date <- extract_date(path)
   
-  df <- read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
+  df <- read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)  
+
+  date_formats <- c("%Y-%m-%d", "%Y/%m/%d", "%Y%m%d",
+                    "%m/%d/%Y", "%m-%d-%Y",
+                    "%m/%d/%y", "%m-%d-%y")
+  
+  df[c("reference_date", "target_end_date")] <-
+    lapply(df[c("reference_date", "target_end_date")],
+           as.Date, tryFormats = date_formats)
   
   models <- unique(df[["model"]])
   
